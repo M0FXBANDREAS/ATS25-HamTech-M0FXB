@@ -1,27 +1,39 @@
-name: Build ATS25 HamTech V1.1 Beta
+name: Build ATS25 HamTech V1.1 BETA
+
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - run: pip install platformio
-      - name: Build
-        run: pio run
-      - name: Verify V1.1 marker
-        run: grep -a -q 'ATS-25 HamTech M0FXB Controller V1.1 BETA' .pio/build/esp32dev/firmware.bin
-      - name: Package
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Verify V1.1 source is actually at repository root
         run: |
-          mkdir firmware
+          grep -F "ATS-25 HamTech M0FXB Controller V1.1 BETA" src/main.cpp
+          grep -F "Direct ILI9341 driver" src/main.cpp
+          if grep -F "TFT_eSPI.h" src/main.cpp; then echo "ERROR: old V1.0 main.cpp still present"; exit 1; fi
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Build ESP32 firmware
+        run: pio run
+      - name: Verify compiled firmware marker
+        run: grep -aF "ATS-25 HamTech M0FXB Controller V1.1 BETA" .pio/build/esp32dev/firmware.bin
+      - name: Prepare firmware package
+        run: |
+          mkdir -p firmware
           cp .pio/build/esp32dev/firmware.bin firmware/
-          sha256sum firmware/firmware.bin > firmware/SHA256SUMS.txt
-      - uses: actions/upload-artifact@v4
+          cp .pio/build/esp32dev/bootloader.bin firmware/
+          cp .pio/build/esp32dev/partitions.bin firmware/
+      - name: Upload compiled firmware
+        uses: actions/upload-artifact@v4
         with:
           name: ATS25-HamTech-M0FXB-V1.1-BETA
           path: firmware/

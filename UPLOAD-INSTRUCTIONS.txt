@@ -1,1 +1,16 @@
-Extract this ZIP. Upload ALL contents to the ROOT of your GitHub repository, replacing existing files. Press Commit changes. Wait for Actions. When GREEN, return to ChatGPT so the compiled firmware can be verified and packaged for COM10 flashing.
+ATS-25 HamTech M0FXB V1.1 BETA - CORRECTED ROOT UPLOAD
+
+IMPORTANT:
+1. Extract this ZIP on Windows.
+2. Open the extracted folder.
+3. Upload THESE ROOT ITEMS to the ROOT of your GitHub repository:
+   .github
+   partitions
+   src
+   platformio.ini
+   README.md
+   UPLOAD-INSTRUCTIONS.txt
+4. When GitHub asks, PRESS "Commit changes".
+5. Do NOT upload the enclosing extracted folder as one nested folder.
+
+The workflow now verifies that src/main.cpp is really V1.1 and rejects the old V1.0 file.
