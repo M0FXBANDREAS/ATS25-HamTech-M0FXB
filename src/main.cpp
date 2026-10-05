@@ -7,7 +7,7 @@
 
 // ATS-25 HamTech M0FXB Controller V1.6 BETA
 // Working V1.1 direct ILI9341 driver retained. Polished receiver UI: bands, VFO A/B, BFO, filters and persistent settings.
-Touch-ready layout retained, but touch input is not enabled until exact calibration is proven.
+// Touch-ready layout retained, but touch input is not enabled until exact calibration is proven.
 static constexpr int TFT_SCLK=18,TFT_MOSI=23,TFT_MISO=19,TFT_CS=15,TFT_DC=2,TFT_RST=4,TFT_LED=14;
 static constexpr int RX_RST=12,I2C_SDA=21,I2C_SCL=22;
 static constexpr int ENC_A=17,ENC_B=16,ENC_SW=33;
@@ -214,7 +214,7 @@ void setup(){
  prefs.begin("hamtech",false);
  volume=prefs.getUChar("vol",35);amFreq=prefs.getUShort("amf",7100);fmFreq=prefs.getUShort("fmf",10000);
  applyBand();drawUI();
- Serial.println("V1.2 BETA READY");
+ Serial.println("V1.6 BETA READY");
 }
 void loop(){
  int d;noInterrupts();d=encDelta;encDelta=0;interrupts();if(d)rotateAction(d>0?1:-1);
