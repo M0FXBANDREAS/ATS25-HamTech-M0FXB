@@ -1,0 +1,33 @@
+name: Build ATS25 HamTech V0.5 Display Fix
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: pip install platformio
+      - name: Build V0.5
+        run: pio run
+      - name: Prove compiled V0.5
+        run: |
+          strings .pio/build/esp32dev/firmware.bin | grep -F "V0.5 DISPLAY BACKLIGHT FIX"
+          strings .pio/build/esp32dev/firmware.bin | grep -F "V0.5 DISPLAY PATTERN DRAWN"
+          strings .pio/build/esp32dev/firmware.bin | grep -F "V0.5 alive:"
+      - name: Package
+        run: |
+          mkdir -p firmware
+          cp .pio/build/esp32dev/firmware.bin firmware/
+          cp .pio/build/esp32dev/bootloader.bin firmware/
+          cp .pio/build/esp32dev/partitions.bin firmware/
+          sha256sum firmware/*.bin > firmware/SHA256SUMS.txt
+          printf 'VERSION=V0.5-DISPLAY-BACKLIGHT-FIX\nGITHUB_SHA=%s\n' "$GITHUB_SHA" > firmware/BUILD-INFO.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ATS25-HamTech-M0FXB-V0.5-DISPLAY-FIX
+          path: firmware/
