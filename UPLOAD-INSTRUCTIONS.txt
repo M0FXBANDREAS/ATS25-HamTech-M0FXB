@@ -1,16 +1,4 @@
-ATS-25 HamTech M0FXB V1.1 BETA - CORRECTED ROOT UPLOAD
-
-IMPORTANT:
-1. Extract this ZIP on Windows.
-2. Open the extracted folder.
-3. Upload THESE ROOT ITEMS to the ROOT of your GitHub repository:
-   .github
-   partitions
-   src
-   platformio.ini
-   README.md
-   UPLOAD-INSTRUCTIONS.txt
-4. When GitHub asks, PRESS "Commit changes".
-5. Do NOT upload the enclosing extracted folder as one nested folder.
-
-The workflow now verifies that src/main.cpp is really V1.1 and rejects the old V1.0 file.
+Extract this ZIP and upload its ROOT contents to the ROOT of the GitHub repository.
+Replace existing files/folders when asked.
+IMPORTANT: after upload, PRESS "Commit changes".
+Wait for the GitHub Action named "Build ATS25 HamTech V1.2 BETA" to finish.

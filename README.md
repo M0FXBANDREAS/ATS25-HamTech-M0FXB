@@ -1,5 +1,9 @@
-# ATS-25 HamTech M0FXB Controller V1.1 BETA
-Experimental private beta for ATS25 MAX-Decoder hardware family.
-Direct ILI9341 initialization: CS15 RST4 DC2 MOSI23 SCLK18 BL14 (LOW=ON).
-SI4735: RESET12, SDA21, SCL22. Encoder A17 B16 SW33. Audio mute GPIO27.
-Factory-compatible 4 MB partition layout. Build artifact contains application firmware only.
+# ATS-25 HamTech M0FXB Controller V1.2 BETA
+Private experimental build.
+
+V1.2 retains the display driver proven on the user's MAX-Decoder hardware.
+Functions in this baseline: real AM/FM SI4735 tuning, encoder tuning, step selection,
+long-press AM/FM change, real RSSI/SNR meter, corrected frequency font/layout.
+
+No synthetic spectrum/waterfall is displayed in V1.2.
+SSB/USB/LSB/CW are intentionally deferred until the SSB patch is integrated correctly.
