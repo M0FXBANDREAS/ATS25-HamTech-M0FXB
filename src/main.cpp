@@ -5,8 +5,8 @@
 #include <SI4735.h>
 #include <patch_ssb_compressed.h>
 
-// ATS-25 HamTech M0FXB Controller V1.7.1 BETA
-// Working V1.1 direct ILI9341 driver retained. Non-blocking incremental RSSI spectrum, stable waterfall, bands, VFO A/B, BFO, filters and persistent settings.
+// ATS-25 HamTech M0FXB Controller V1.7.2 BETA
+// Working V1.1 direct ILI9341 driver retained. Radio-first scope isolation: normal listening never sweeps; real RSSI scope runs only when explicitly selected.
 // Touch-ready layout retained, but touch input is not enabled until exact calibration is proven.
 static constexpr int TFT_SCLK=18,TFT_MOSI=23,TFT_MISO=19,TFT_CS=15,TFT_DC=2,TFT_RST=4,TFT_LED=14;
 static constexpr int RX_RST=12,I2C_SDA=21,I2C_SCL=22;
@@ -31,7 +31,7 @@ const Band bands[]={
  {"10",28000,29700,28500,MODE_USB},{"FM",6400,10800,10000,MODE_FM}
 };
 uint8_t bandPos=6;
-bool scopeOn=true; uint8_t scopeSpan=20; // +/- kHz; swept RSSI, not SDR/IQ
+bool scopeOn=false; uint8_t scopeSpan=20; // +/- kHz; swept RSSI, not SDR/IQ
 const uint8_t ssbBwCode[6]={4,5,0,1,2,3};
 const char* ssbBwName[6]={"0.5","1.0","1.2","2.2","3.0","4.0"};
 const uint16_t size_content=sizeof ssb_patch_content;
@@ -169,7 +169,7 @@ static void modeBox(int x,int y,int w,const char* name,RadioMode m){
 static void drawFooter(){
   rect(0,158,320,82,0x0008);
   if(scopeOn)drawScopeFrame();
-  else {drawGlobe(18,176);text(34,167,"HAMTECH M0FXB",2,CYAN);char q[32];snprintf(q,sizeof(q),"BFO %d HZ",bfo);text(184,169,q,1,(control==CTRL_BFO)?YELLOW:WHITE);}
+  else {drawGlobe(18,176);text(34,167,"HAMTECH M0FXB",2,CYAN);char q[32];snprintf(q,sizeof(q),"BFO %d HZ",bfo);text(184,164,q,1,(control==CTRL_BFO)?YELLOW:WHITE);text(184,178,control==CTRL_SCOPE?"SCOPE ROTATE ON":"RADIO AUDIO",1,control==CTRL_SCOPE?YELLOW:GREEN);}
   modeBox(4,204,72,"AM",MODE_AM);modeBox(82,204,72,"FM",MODE_FM);
   modeBox(160,204,72,"LSB",MODE_LSB);modeBox(238,204,78,"USB",MODE_USB);
 }static void drawUI(){rect(0,0,320,240,0x0008);drawHeader();drawStatus();drawMeter();drawFooter();}
@@ -229,7 +229,17 @@ static void changeVfoAB(){
  if(mode!=MODE_FM){rx.setFrequency(amFreq);drawHeader();}drawStatus();
 }
 static void changeScope(int dir){
- int v=(int)scopeSpan+(dir>0?5:-5);scopeSpan=constrain(v,5,50);drawScopeFrame();
+ scopeOn = dir>0;
+ scopePos=0;
+ if(!scopeOn){
+   rx.setFrequency(curFreq());
+   drawFooter();
+   Serial.println("SCOPE OFF - NORMAL RADIO AUDIO");
+ } else {
+   for(int i=0;i<SCOPE_PTS;i++)scopeVals[i]=0;
+   drawFooter();
+   Serial.println("SCOPE ON - SWEPT RSSI MODE");
+ }
 }
 static void rotateAction(int dir){
  if(control==CTRL_VFO){if(mode==MODE_FM)fmFreq=constrain((int)fmFreq+dir*fmStep,6400,10800);else amFreq=constrain((int)amFreq+dir*amStep,mode==MODE_AM?150:520,30000);rx.setFrequency(curFreq());drawHeader();}
@@ -243,12 +253,13 @@ static void rotateAction(int dir){
  else if(control==CTRL_SCOPE)changeScope(dir);
 }
 static void selectNext(){
+ if(control==CTRL_SCOPE && scopeOn){scopeOn=false;scopePos=0;rx.setFrequency(curFreq());}
  control=(Control)(((int)control+1)%9);
  drawStatus();drawFooter();
 }
 
 void setup(){
- Serial.begin(115200);delay(300);Serial.println("ATS-25 HamTech M0FXB Controller V1.7.1 BETA");
+ Serial.begin(115200);delay(300);Serial.println("ATS-25 HamTech M0FXB Controller V1.7.2 BETA");
  initLCD();rect(0,0,320,240,BLACK);
  pinMode(ENC_A,INPUT_PULLUP);pinMode(ENC_B,INPUT_PULLUP);pinMode(ENC_SW,INPUT_PULLUP);
  attachInterrupt(ENC_A,encISR,CHANGE);attachInterrupt(ENC_B,encISR,CHANGE);
@@ -258,7 +269,7 @@ void setup(){
  prefs.begin("hamtech",false);
  volume=prefs.getUChar("vol",35);amFreq=prefs.getUShort("amf",7100);fmFreq=prefs.getUShort("fmf",10000);
  applyBand();drawUI();
- Serial.println("V1.7.1 BETA READY");
+ Serial.println("V1.7.2 BETA READY - SCOPE OFF");
 }
 void loop(){
  int d;noInterrupts();d=encDelta;encDelta=0;interrupts();if(d)rotateAction(d>0?1:-1);
@@ -266,7 +277,7 @@ void loop(){
  if(down&&!was)downAt=millis();
  if(!down&&was&&millis()-downAt>25)selectNext();
  was=down;
- static uint32_t t=0;if(millis()-t>500){t=millis();rx.getCurrentReceivedSignalQuality();rssi=rx.getCurrentRSSI();snr=rx.getCurrentSNR();drawMeter();Serial.printf("V1.7.1 %s %u VOL %u BW %s RSSI %u SNR %u\n",modeName(),curFreq(),volume,(mode==MODE_LSB||mode==MODE_USB)?ssbBwName[ssbBwPos]:"3.0",rssi,snr);}
+ static uint32_t t=0;if(!scopeOn&&millis()-t>500){t=millis();rx.getCurrentReceivedSignalQuality();rssi=rx.getCurrentRSSI();snr=rx.getCurrentSNR();drawMeter();Serial.printf("V1.7.2 %s %u VOL %u BW %s RSSI %u SNR %u\n",modeName(),curFreq(),volume,(mode==MODE_LSB||mode==MODE_USB)?ssbBwName[ssbBwPos]:"3.0",rssi,snr);}
  scopeTick();
  static uint32_t sv=0;if(millis()-sv>5000){sv=millis();prefs.putUChar("vol",volume);prefs.putUShort("amf",amFreq);prefs.putUShort("fmf",fmFreq);}
 }

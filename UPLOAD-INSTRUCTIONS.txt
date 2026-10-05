@@ -1,4 +1,4 @@
-V1.7.1 STABILITY FIX
+V1.7.2 RADIO-FIRST FIX
 
-Extract ZIP and upload ROOT contents to repository ROOT, replacing existing files.
+Extract ZIP. Upload ROOT contents to repository ROOT, replacing existing files.
 Then PRESS "Commit changes".
