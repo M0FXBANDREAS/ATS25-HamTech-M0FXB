@@ -1,8 +1,8 @@
-name: Build ATS25 HamTech V1.0 Receiver
+name: Build ATS25 HamTech V1.1 Beta
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [ main ]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -10,21 +10,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: '3.13'
       - run: pip install platformio
-      - name: Build V1.0 receiver
+      - name: Build
         run: pio run
-      - name: Verify V1.0 binary
-        run: strings .pio/build/esp32dev/firmware.bin | grep -F "ATS-25 HamTech M0FXB Controller V1.0"
-      - name: Package firmware
+      - name: Verify V1.1 marker
+        run: grep -a -q 'ATS-25 HamTech M0FXB Controller V1.1 BETA' .pio/build/esp32dev/firmware.bin
+      - name: Package
         run: |
-          mkdir -p firmware
+          mkdir firmware
           cp .pio/build/esp32dev/firmware.bin firmware/
-          cp .pio/build/esp32dev/bootloader.bin firmware/
-          cp .pio/build/esp32dev/partitions.bin firmware/
-          sha256sum firmware/*.bin > firmware/SHA256SUMS.txt
-          printf 'VERSION=V1.0-RECEIVER\nGITHUB_SHA=%s\n' "$GITHUB_SHA" > firmware/BUILD-INFO.txt
+          sha256sum firmware/firmware.bin > firmware/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: ATS25-HamTech-M0FXB-V1.0-RECEIVER
+          name: ATS25-HamTech-M0FXB-V1.1-BETA
           path: firmware/

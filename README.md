@@ -1,7 +1,5 @@
-# ATS-25 HamTech M0FXB Controller V1.0 — Build Fix 3
-
-Corrects the SI4735 dependency after GitHub Actions run #10.
-
-- TFT_eSPI: PlatformIO registry 2.5.43
-- PU2CLR SI4735: official GitHub repository
-- Factory-compatible 4 MB partition layout retained
+# ATS-25 HamTech M0FXB Controller V1.1 BETA
+Experimental private beta for ATS25 MAX-Decoder hardware family.
+Direct ILI9341 initialization: CS15 RST4 DC2 MOSI23 SCLK18 BL14 (LOW=ON).
+SI4735: RESET12, SDA21, SCL22. Encoder A17 B16 SW33. Audio mute GPIO27.
+Factory-compatible 4 MB partition layout. Build artifact contains application firmware only.

@@ -1,1 +1,1 @@
-Upload the CONTENTS of this ZIP to the repository root, preserving src/, partitions/, and .github/workflows/. Replace existing files when prompted, then press Commit changes.
+Extract this ZIP. Upload ALL contents to the ROOT of your GitHub repository, replacing existing files. Press Commit changes. Wait for Actions. When GREEN, return to ChatGPT so the compiled firmware can be verified and packaged for COM10 flashing.
