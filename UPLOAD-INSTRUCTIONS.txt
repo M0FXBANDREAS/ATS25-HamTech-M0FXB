@@ -1,6 +1,1 @@
-V1.6 RED-BUILD FIX
-
-The failure was identified: one descriptive line in src/main.cpp was missing // and was compiled as C++ code.
-This package fixes that exact source error and also corrects the serial READY version string.
-
-Upload ROOT contents to repository ROOT, replace existing files, then PRESS "Commit changes".
+Extract ZIP. Upload ROOT contents to repository ROOT, replacing old files. Then PRESS "Commit changes".

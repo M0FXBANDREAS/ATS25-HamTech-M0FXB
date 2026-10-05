@@ -1,19 +1,17 @@
-# ATS-25 HamTech M0FXB Controller V1.6 BETA
+# ATS-25 HamTech M0FXB Controller V1.7 BETA
 
-Builds on the proven V1.5 hardware/radio base.
+Adds a REAL SI4735 swept-RSSI spectrum/waterfall display to the proven V1.6 receiver.
 
-Added:
-- Receiver-style dark UI
-- Amateur + broadcast band presets
-- VFO A/B
-- SSB BFO +/- 2 kHz in 25 Hz steps
-- Existing real AM/FM/LSB/USB and SSB filters retained
-- Persistent volume and AM/FM frequencies using ESP32 NVS
-- Green/yellow/red segmented S-meter retained
+Important: SI4735 is not a wideband I/Q SDR. The scope deliberately retunes through points around
+the centre frequency, measures RSSI, restores the centre frequency, and therefore briefly interrupts
+normal reception while sweeping. It is real measured RF signal strength, not decorative/fake FFT data.
 
-Encoder press cycles: VFO, VOL, STEP, FILTER, MODE, BAND, BFO, VFO A/B.
-Rotate changes the selected function.
+- 52-point swept RSSI scope
+- waterfall intensity strip
+- red centre marker
+- selectable +/-5 to +/-50 kHz scope span
+- AM/FM/LSB/USB retained
+- bands, VFO A/B, BFO and filters retained
+- NVS settings retained
 
-Touch: layout is touch-ready, but touch input is intentionally NOT enabled in V1.6.
-The public ATS-25-family pin evidence suggests shared SPI with touch CS GPIO5 and IRQ GPIO34,
-but calibration/orientation is not yet proven on this exact MAX-Decoder unit.
+Touch is still held for the next revision so the exact panel calibration can be proven separately.
