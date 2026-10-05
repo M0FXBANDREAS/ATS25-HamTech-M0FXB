@@ -1,0 +1,39 @@
+name: Build ATS25 HamTech Firmware
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build ESP32 firmware
+        run: pio run
+
+      - name: Prepare firmware package
+        run: |
+          mkdir -p firmware
+          cp .pio/build/esp32dev/firmware.bin firmware/
+          cp .pio/build/esp32dev/bootloader.bin firmware/
+          cp .pio/build/esp32dev/partitions.bin firmware/
+
+      - name: Upload compiled firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: ATS25-HamTech-M0FXB-V0.2-SAFE-PROBE
+          path: firmware/
