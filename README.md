@@ -1,11 +1,4 @@
-# ATS-25 HamTech M0FXB Controller — V0.4 TFT HARDWARE TEST
+# ATS-25 HamTech M0FXB Controller — V0.5
+Display/backlight correction only. V0.4 proved the ESP32 firmware stable but the panel changed white to black. The public ATS-25X2 hardware notes show GPIO14 driving a PNP BC557 backlight stage, so LOW is the expected ON state. V0.5 keeps GPIO14 LOW after TFT initialization.
 
-V0.4 is a deliberately limited display bring-up build for the classic ESP32-WROOM ATS-25 family.
-
-It drives only the candidate ILI9341 display interface: SCLK 18, MOSI 23, MISO 19, CS 15, DC 2, RESET 4, backlight 14.
-Touch, SI473x, encoder, audio and RF/front-end GPIO are not initialized.
-
-Expected display: black background with blue header/footer, a white separator, and four large RED / GREEN / BLUE / WHITE vertical bars.
-Serial output at 115200 contains `V0.4 TFT HARDWARE TEST` and an alive message every five seconds.
-
-Factory-compatible 4 MB partition target is retained. Keep the original factory backup private and do not commit it.
+No touch, SI473x, encoder, audio, Wi-Fi, or front-end control is enabled in this build.

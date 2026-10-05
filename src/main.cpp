@@ -49,13 +49,13 @@ static void initILI9341() {
   cmd(0x36); data8(0x28); // landscape candidate orientation, BGR
   cmd(0x11); delay(120); // sleep out
   cmd(0x29); delay(20);  // display on
-  digitalWrite(TFT_LED,HIGH);
+  digitalWrite(TFT_LED,LOW); // PNP backlight stage: LOW = ON
 }
 
 void setup() {
   Serial.begin(115200); delay(1000);
   Serial.println("ATS-25 HamTech M0FXB Controller");
-  Serial.println("V0.4 TFT HARDWARE TEST");
+  Serial.println("V0.5 DISPLAY BACKLIGHT FIX");
   Serial.println("Candidate ILI9341 mapping: SCLK18 MOSI23 MISO19 CS15 DC2 RST4 LED14");
   Serial.println("Touch/SI473x/encoder/audio/front-end GPIO are NOT initialized.");
   initILI9341();
