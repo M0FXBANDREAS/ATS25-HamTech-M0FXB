@@ -2,16 +2,20 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <SI4735.h>
+#include <patch_ssb_compressed.h>
 
-// ATS-25 HamTech M0FXB Controller V1.2 BETA
-// Working V1.1 direct ILI9341 driver retained. Truthful AM/FM receiver baseline.
+// ATS-25 HamTech M0FXB Controller V1.3 BETA
+// Working V1.1 direct ILI9341 driver retained. Adds real PU2CLR SSB patch, USB/LSB, volume mode, branding and segmented S-meter.
 static constexpr int TFT_SCLK=18,TFT_MOSI=23,TFT_MISO=19,TFT_CS=15,TFT_DC=2,TFT_RST=4,TFT_LED=14;
 static constexpr int RX_RST=12,I2C_SDA=21,I2C_SCL=22;
 static constexpr int ENC_A=17,ENC_B=16,ENC_SW=33;
 SPIClass lcd(VSPI); SI4735 rx;
 
-enum RadioMode : uint8_t { MODE_AM, MODE_FM };
+enum RadioMode : uint8_t { MODE_AM, MODE_FM, MODE_LSB, MODE_USB };
 RadioMode mode=MODE_AM;
+bool ssbLoaded=false, volumeMode=false;
+const uint16_t size_content=sizeof ssb_patch_content;
+const uint16_t cmd_0x15_size=sizeof cmd_0x15;
 uint16_t amFreq=7100, fmFreq=10000;
 uint16_t amStep=1, fmStep=10; // AM kHz; FM 10 = 100 kHz in SI4735 units
 uint8_t volume=35,rssi=0,snr=0;
@@ -57,6 +61,7 @@ static void text(int x,int y,const char* s,int sc,uint16_t col){while(*s){chr(x,
 static void centered(int y,const char* s,int sc,uint16_t col){text((320-textWidth(s,sc))/2,y,s,sc,col);}
 
 static uint16_t curFreq(){return mode==MODE_FM?fmFreq:amFreq;}
+static const char* modeName(){return mode==MODE_FM?"FM":mode==MODE_AM?"AM":mode==MODE_LSB?"LSB":"USB";}
 static void drawHeader(){
   rect(0,0,320,62,BLUE);
   char b[24];
@@ -65,24 +70,36 @@ static void drawHeader(){
   else snprintf(b,sizeof(b),"%u",amFreq);
   int sc=(strlen(b)<=6)?6:5; centered(8,b,sc,WHITE);
 }
+static void drawGlobe(int cx,int cy){
+  // Small original pixel globe: cyan ocean outline, green land marks.
+  for(int y=-9;y<=9;y++)for(int x=-9;x<=9;x++){int q=x*x+y*y;if(q>=64&&q<=88)rect(cx+x,cy+y,1,1,CYAN);}
+  rect(cx-1,cy-8,2,17,CYAN); rect(cx-7,cy-1,15,2,CYAN);
+  rect(cx-5,cy-5,4,3,GREEN);rect(cx+2,cy-3,4,4,GREEN);rect(cx-2,cy+3,5,3,GREEN);
+}
 static void drawStatus(){
   rect(0,62,320,44,BLACK);
-  char a[32],b[32];
-  if(mode==MODE_FM){snprintf(a,sizeof(a),"FM  STEP %u KHZ",fmStep*10);snprintf(b,sizeof(b),"64.0-108.0 MHZ");}
-  else {snprintf(a,sizeof(a),"AM  STEP %u KHZ",amStep);snprintf(b,sizeof(b),"150-30000 KHZ");}
-  text(6,66,a,2,WHITE); text(6,88,b,1,CYAN);
+  char a[40],b[40];
+  if(mode==MODE_FM){snprintf(a,sizeof(a),"FM STEP %u KHZ",fmStep*10);snprintf(b,sizeof(b),"VOL %u",volume);}
+  else {snprintf(a,sizeof(a),"%s STEP %u KHZ",modeName(),amStep);snprintf(b,sizeof(b),"VOL %u%s",volume,volumeMode?" ADJUST":"");}
+  text(6,66,a,2,WHITE); text(6,88,b,1,volumeMode?YELLOW:CYAN);
 }
 static void drawMeter(){
-  rect(0,106,320,55,BLACK); text(6,109,"S 1 3 5 7 9",1,WHITE);
-  int w=map(constrain(rssi,0,80),0,80,0,300);
-  rect(10,125,300,16,DGREY); rect(10,125,w,16,rssi>55?RED:(rssi>30?YELLOW:GREEN));
-  char b[32];snprintf(b,sizeof(b),"RSSI %u  SNR %u",rssi,snr);text(10,146,b,1,WHITE);
+  rect(0,106,320,55,BLACK); text(6,108,"S 1 3 5 7 9 +20 +40",1,WHITE);
+  const int n=24,gap=2,sw=11,x0=7,y=124,h=18;
+  int lit=map(constrain(rssi,0,80),0,80,0,n);
+  for(int i=0;i<n;i++){
+    uint16_t c=i<14?GREEN:(i<20?YELLOW:RED);
+    rect(x0+i*(sw+gap),y,sw,h,i<lit?c:DGREY);
+  }
+  char b[32];snprintf(b,sizeof(b),"RSSI %u  SNR %u",rssi,snr);text(7,146,b,1,WHITE);
 }
 static void drawFooter(){
   rect(0,161,320,79,BLACK);
-  text(6,168,"ROTATE TUNE",2,CYAN);
-  text(6,190,"PRESS STEP",2,WHITE);
-  text(6,212,"HOLD AM FM",2,GREEN);
+  drawGlobe(18,178); text(34,169,"HAMTECH M0FXB",2,CYAN);
+  text(6,194,"PRESS STEP",1,WHITE);
+  text(112,194,"DOUBLE VOL",1,YELLOW);
+  text(224,194,"HOLD MODE",1,GREEN);
+  text(6,214,"AM FM LSB USB",2,WHITE);
 }
 static void drawUI(){drawHeader();drawStatus();drawMeter();drawFooter();}
 
@@ -90,28 +107,46 @@ void IRAM_ATTR encISR(){
  static uint8_t old=0;uint8_t n=(digitalRead(ENC_A)<<1)|digitalRead(ENC_B);uint8_t q=(old<<2)|n;
  if(q==0xD||q==4||q==2||q==0xB)encDelta++; if(q==0xE||q==7||q==1||q==8)encDelta--; old=n;
 }
+static void loadSSB(){
+  rx.reset(); rx.queryLibraryId(); rx.patchPowerUp(); delay(50);
+  rx.setI2CFastModeCustom(500000);
+  rx.downloadCompressedPatch(ssb_patch_content,size_content,cmd_0x15,cmd_0x15_size);
+  rx.setSSBConfig(1,1,0,1,0,1); // 2.2 kHz, AVC on, AFC disabled for SSB
+  rx.setI2CStandardMode(); ssbLoaded=true;
+}
 static void applyBand(){
- if(mode==MODE_FM) rx.setFM(6400,10800,fmFreq,fmStep);
- else {rx.setAM(150,30000,amFreq,amStep);rx.setBandwidth(2,1);} // 3 kHz AM filter
+ if(mode==MODE_FM){ssbLoaded=false;rx.setFM(6400,10800,fmFreq,fmStep);}
+ else if(mode==MODE_AM){ssbLoaded=false;rx.setAM(150,30000,amFreq,amStep);rx.setBandwidth(2,1);}
+ else {
+   if(!ssbLoaded) loadSSB();
+   rx.setSSB(520,30000,amFreq,amStep,mode==MODE_USB?2:1);
+   rx.setSSBAutomaticVolumeControl(1); rx.setSsbSoftMuteMaxAttenuation(0); rx.setSSBBfo(0);
+ }
  rx.setVolume(volume);
 }
 static void tune(int dir){
- if(mode==MODE_FM){int v=(int)fmFreq+dir*fmStep;fmFreq=constrain(v,6400,10800);}
- else {int v=(int)amFreq+dir*amStep;amFreq=constrain(v,150,30000);}
+ if(volumeMode){
+   int v=constrain((int)volume+dir,0,63);volume=v;rx.setVolume(volume);drawStatus();return;
+ }
+ if(mode==MODE_FM){fmFreq=constrain((int)fmFreq+dir*fmStep,6400,10800);}
+ else {amFreq=constrain((int)amFreq+dir*amStep,mode==MODE_AM?150:520,30000);}
  rx.setFrequency(curFreq()); drawHeader();
 }
 static void shortPress(){
+ if(volumeMode){volumeMode=false;drawStatus();return;}
  if(mode==MODE_FM) fmStep=(fmStep==1?10:1);
  else amStep=(amStep==1?5:amStep==5?9:amStep==9?10:amStep==10?100:1);
  rx.setFrequencyStep(mode==MODE_FM?fmStep:amStep);drawStatus();
 }
-static void toggleMode(){
- mode=(mode==MODE_AM)?MODE_FM:MODE_AM;applyBand();drawUI();
- Serial.printf("MODE %s FREQ %u\n",mode==MODE_FM?"FM":"AM",curFreq());
+static void toggleVolume(){volumeMode=!volumeMode;drawStatus();}
+static void nextMode(){
+ volumeMode=false;
+ if(mode==MODE_AM)mode=MODE_FM; else if(mode==MODE_FM)mode=MODE_LSB; else if(mode==MODE_LSB)mode=MODE_USB; else mode=MODE_AM;
+ applyBand();drawUI();Serial.printf("MODE %s FREQ %u\n",modeName(),curFreq());
 }
 
 void setup(){
- Serial.begin(115200);delay(300);Serial.println("ATS-25 HamTech M0FXB Controller V1.2 BETA");
+ Serial.begin(115200);delay(300);Serial.println("ATS-25 HamTech M0FXB Controller V1.3 BETA");
  initLCD();rect(0,0,320,240,BLACK);
  pinMode(ENC_A,INPUT_PULLUP);pinMode(ENC_B,INPUT_PULLUP);pinMode(ENC_SW,INPUT_PULLUP);
  attachInterrupt(ENC_A,encISR,CHANGE);attachInterrupt(ENC_B,encISR,CHANGE);
@@ -121,11 +156,17 @@ void setup(){
  Serial.println("V1.2 BETA READY");
 }
 void loop(){
- int d;noInterrupts();d=encDelta;encDelta=0;interrupts();
- if(d){int dir=d>0?1:-1;tune(dir);}
+ int d;noInterrupts();d=encDelta;encDelta=0;interrupts();if(d)tune(d>0?1:-1);
+ static bool lastDown=false; static uint32_t downAt=0,lastClick=0; static bool longDone=false;
  bool down=digitalRead(ENC_SW)==LOW;
- if(down && pressStart==0){pressStart=millis();pressHandled=false;}
- if(down && !pressHandled && millis()-pressStart>=900){pressHandled=true;toggleMode();}
- if(!down && pressStart){if(!pressHandled && millis()-pressStart>30)shortPress();pressStart=0;pressHandled=false;delay(30);}
- static uint32_t t=0;if(millis()-t>500){t=millis();rx.getCurrentReceivedSignalQuality();rssi=rx.getCurrentRSSI();snr=rx.getCurrentSNR();drawMeter();Serial.printf("V1.2 %s %u RSSI %u SNR %u heap %u\n",mode==MODE_FM?"FM":"AM",curFreq(),rssi,snr,ESP.getFreeHeap());}
+ if(down&&!lastDown){downAt=millis();longDone=false;}
+ if(down&&!longDone&&millis()-downAt>=900){longDone=true;nextMode();}
+ if(!down&&lastDown&&!longDone){
+   uint32_t now=millis();
+   if(now-lastClick<420){lastClick=0;toggleVolume();}
+   else lastClick=now;
+ }
+ if(lastClick && millis()-lastClick>=420){lastClick=0;shortPress();}
+ lastDown=down;
+ static uint32_t t=0;if(millis()-t>500){t=millis();rx.getCurrentReceivedSignalQuality();rssi=rx.getCurrentRSSI();snr=rx.getCurrentSNR();drawMeter();Serial.printf("V1.3 %s %u VOL %u RSSI %u SNR %u heap %u\n",modeName(),curFreq(),volume,rssi,snr,ESP.getFreeHeap());}
 }

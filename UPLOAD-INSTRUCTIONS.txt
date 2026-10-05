@@ -1,4 +1,3 @@
-Extract this ZIP and upload its ROOT contents to the ROOT of the GitHub repository.
-Replace existing files/folders when asked.
-IMPORTANT: after upload, PRESS "Commit changes".
-Wait for the GitHub Action named "Build ATS25 HamTech V1.2 BETA" to finish.
+Extract ZIP. Upload ROOT contents to ROOT of GitHub repository, replacing old files.
+Then PRESS "Commit changes".
+Wait for "Build ATS25 HamTech V1.3 BETA" to go green.

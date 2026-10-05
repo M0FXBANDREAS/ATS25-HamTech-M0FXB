@@ -1,9 +1,11 @@
-# ATS-25 HamTech M0FXB Controller V1.2 BETA
-Private experimental build.
+# ATS-25 HamTech M0FXB Controller V1.3 BETA
+Builds directly on the proven V1.2 display/radio baseline.
 
-V1.2 retains the display driver proven on the user's MAX-Decoder hardware.
-Functions in this baseline: real AM/FM SI4735 tuning, encoder tuning, step selection,
-long-press AM/FM change, real RSSI/SNR meter, corrected frequency font/layout.
+Controls:
+- Rotate: tune
+- Short press: step
+- Double press: enter/exit volume adjustment; rotate changes volume
+- Hold ~0.9 s: AM -> FM -> LSB -> USB -> AM
 
-No synthetic spectrum/waterfall is displayed in V1.2.
-SSB/USB/LSB/CW are intentionally deferred until the SSB patch is integrated correctly.
+V1.3 adds the PU2CLR compressed SSB patch for genuine LSB/USB, HamTech M0FXB branding,
+a small original globe icon, and a segmented green/yellow/red RSSI S-meter.
