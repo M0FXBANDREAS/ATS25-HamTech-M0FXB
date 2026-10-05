@@ -1,15 +1,11 @@
-# ATS-25 HamTech M0FXB Controller — V0.3
+# ATS-25 HamTech M0FXB Controller — V0.4 TFT HARDWARE TEST
 
-Factory-layout hardware probe for the classic ESP32-WROOM ATS25 MAX-Decoder.
+V0.4 is a deliberately limited display bring-up build for the classic ESP32-WROOM ATS-25 family.
 
-## Safety scope
-This build deliberately does not drive unverified TFT, XPT2046 touch, SI473x, rotary encoder, antenna switching, battery ADC or audio GPIOs. It provides USB serial diagnostics at 115200 baud.
+It drives only the candidate ILI9341 display interface: SCLK 18, MOSI 23, MISO 19, CS 15, DC 2, RESET 4, backlight 14.
+Touch, SI473x, encoder, audio and RF/front-end GPIO are not initialized.
 
-## Factory-compatible 4 MB partition target
-- NVS 0x9000 / 0x5000
-- OTA data 0xE000 / 0x2000
-- APP0 0x10000 / 0x240000
-- SPIFFS 0x250000 / 0x160000
-- COREDUMP 0x3B0000 / 0x10000
+Expected display: black background with blue header/footer, a white separator, and four large RED / GREEN / BLUE / WHITE vertical bars.
+Serial output at 115200 contains `V0.4 TFT HARDWARE TEST` and an alive message every five seconds.
 
-Keep the original 4,194,304-byte factory backup private and safe. Do not commit it.
+Factory-compatible 4 MB partition target is retained. Keep the original factory backup private and do not commit it.
