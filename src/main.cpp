@@ -105,11 +105,7 @@ static void drawMeter(){
   for(int i=0;i<n;i++){uint16_t c=i<14?GREEN:(i<20?YELLOW:RED);rect(x0+i*(sw+gap),y,sw,h,i<lit?c:0x2104);}
   char b[32];snprintf(b,sizeof(b),"RSSI %u SNR %u",rssi,snr);text(7,145,b,1,WHITE);
 }
-static void drawGlobe(int cx,int cy){
-  for(int y=-9;y<=9;y++)for(int x=-9;x<=9;x++){int q=x*x+y*y;if(q>=64&&q<=88)rect(cx+x,cy+y,1,1,CYAN);}
-  rect(cx-1,cy-8,2,17,CYAN);rect(cx-7,cy-1,15,2,CYAN);
-  rect(cx-5,cy-5,4,3,GREEN);rect(cx+2,cy-3,4,4,GREEN);rect(cx-2,cy+3,5,3,GREEN);
-}
+
 static void drawFooter(){
   rect(0,158,320,82,0x0008);
   drawGlobe(19,176);text(35,166,"HAMTECH M0FXB",2,CYAN);
