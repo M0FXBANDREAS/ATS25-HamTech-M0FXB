@@ -1,1 +1,1 @@
-Extract ZIP. Upload ROOT contents to repository ROOT, replace old files, then PRESS "Commit changes".
+Extract ZIP. Upload ROOT contents to repository ROOT, replacing old files. Then PRESS "Commit changes".

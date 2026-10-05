@@ -4,8 +4,8 @@
 #include <SI4735.h>
 #include <patch_ssb_compressed.h>
 
-// ATS-25 HamTech M0FXB Controller V1.4 BETA
-// Working V1.1 direct ILI9341 driver retained. Receiver-style UI with explicit VFO/VOL/STEP/FILTER selection and direct AM/FM/LSB/USB mode selection.
+// ATS-25 HamTech M0FXB Controller V1.5 BETA
+// Working V1.1 direct ILI9341 driver retained. Receiver-style UI with prominent AM/FM/LSB/USB mode strip and direct real SSB selection.
 static constexpr int TFT_SCLK=18,TFT_MOSI=23,TFT_MISO=19,TFT_CS=15,TFT_DC=2,TFT_RST=4,TFT_LED=14;
 static constexpr int RX_RST=12,I2C_SDA=21,I2C_SCL=22;
 static constexpr int ENC_A=17,ENC_B=16,ENC_SW=33;
@@ -106,12 +106,21 @@ static void drawMeter(){
   char b[32];snprintf(b,sizeof(b),"RSSI %u SNR %u",rssi,snr);text(7,145,b,1,WHITE);
 }
 
+static void modeBox(int x,int w,const char* name,RadioMode m){
+  bool on=mode==m;
+  rect(x,202,w,30,on?0x07E0:0x1082);
+  rect(x,202,w,2,on?WHITE:DGREY);rect(x,230,w,2,on?WHITE:DGREY);
+  int tw=textWidth(name,2);text(x+(w-tw)/2,209,name,2,on?BLACK:WHITE);
+}
 static void drawFooter(){
   rect(0,158,320,82,0x0008);
   drawGlobe(19,176);text(35,166,"HAMTECH M0FXB",2,CYAN);
-  text(7,192,"PRESS SELECT",1,WHITE);text(128,192,"ROTATE CHANGE",1,YELLOW);
-  text(7,208,"MODE AM FM LSB USB",1,GREEN);
-  text(7,224,"VFO VOL STEP FILTER",1,WHITE);
+  text(184,168,"SELECT MODE",1,YELLOW);
+  text(184,181,"PRESS TO MODE",1,WHITE);
+  modeBox(4,72,"AM",MODE_AM);
+  modeBox(82,72,"FM",MODE_FM);
+  modeBox(160,72,"LSB",MODE_LSB);
+  modeBox(238,78,"USB",MODE_USB);
 }
 static void drawUI(){rect(0,0,320,240,0x0008);drawHeader();drawStatus();drawMeter();drawFooter();}
 void IRAM_ATTR encISR(){
@@ -143,7 +152,8 @@ static void applyBand(){
  rx.setVolume(volume);
 }
 static void changeMode(int dir){
- int m=(int)mode+(dir>0?1:-1);if(m>3)m=0;if(m<0)m=3;mode=(RadioMode)m;applyBand();drawHeader();drawStatus();
+ int m=(int)mode+(dir>0?1:-1);if(m>3)m=0;if(m<0)m=3;mode=(RadioMode)m;applyBand();drawHeader();drawStatus();drawFooter();
+ Serial.printf("MODE SELECTED: %s (%s)\n",modeName(),mode==MODE_LSB?"LOWER SIDEBAND":mode==MODE_USB?"UPPER SIDEBAND":modeName());
 }
 static void changeStep(int dir){
  if(mode==MODE_FM){fmStep=fmStep==10?1:10;}
@@ -161,10 +171,13 @@ static void rotateAction(int dir){
  else if(control==CTRL_FILTER)changeFilter(dir);
  else if(control==CTRL_MODE)changeMode(dir);
 }
-static void selectNext(){control=(Control)(((int)control+1)%5);drawStatus();}
+static void selectNext(){
+ control=(Control)(((int)control+1)%5);
+ drawStatus();drawFooter();
+}
 
 void setup(){
- Serial.begin(115200);delay(300);Serial.println("ATS-25 HamTech M0FXB Controller V1.4 BETA");
+ Serial.begin(115200);delay(300);Serial.println("ATS-25 HamTech M0FXB Controller V1.5 BETA");
  initLCD();rect(0,0,320,240,BLACK);
  pinMode(ENC_A,INPUT_PULLUP);pinMode(ENC_B,INPUT_PULLUP);pinMode(ENC_SW,INPUT_PULLUP);
  attachInterrupt(ENC_A,encISR,CHANGE);attachInterrupt(ENC_B,encISR,CHANGE);
@@ -179,5 +192,5 @@ void loop(){
  if(down&&!was)downAt=millis();
  if(!down&&was&&millis()-downAt>25)selectNext();
  was=down;
- static uint32_t t=0;if(millis()-t>500){t=millis();rx.getCurrentReceivedSignalQuality();rssi=rx.getCurrentRSSI();snr=rx.getCurrentSNR();drawMeter();Serial.printf("V1.4 %s %u VOL %u BW %s RSSI %u SNR %u\n",modeName(),curFreq(),volume,(mode==MODE_LSB||mode==MODE_USB)?ssbBwName[ssbBwPos]:"3.0",rssi,snr);}
+ static uint32_t t=0;if(millis()-t>500){t=millis();rx.getCurrentReceivedSignalQuality();rssi=rx.getCurrentRSSI();snr=rx.getCurrentSNR();drawMeter();Serial.printf("V1.5 %s %u VOL %u BW %s RSSI %u SNR %u\n",modeName(),curFreq(),volume,(mode==MODE_LSB||mode==MODE_USB)?ssbBwName[ssbBwPos]:"3.0",rssi,snr);}
 }
