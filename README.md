@@ -1,11 +1,7 @@
-# ATS-25 HamTech M0FXB Controller V1.3 BETA
-Builds directly on the proven V1.2 display/radio baseline.
+# ATS-25 HamTech M0FXB Controller V1.4 BETA
+Receiver-style control UI.
 
-Controls:
-- Rotate: tune
-- Short press: step
-- Double press: enter/exit volume adjustment; rotate changes volume
-- Hold ~0.9 s: AM -> FM -> LSB -> USB -> AM
-
-V1.3 adds the PU2CLR compressed SSB patch for genuine LSB/USB, HamTech M0FXB branding,
-a small original globe icon, and a segmented green/yellow/red RSSI S-meter.
+Press encoder: select VFO -> VOL -> STEP -> FILTER -> MODE.
+Rotate encoder: change highlighted control.
+MODE rotates directly through AM, FM, LSB, USB.
+SSB FILTER: 0.5, 1.0, 1.2, 2.2, 3.0, 4.0 kHz using PU2CLR SI4735 SSB bandwidth API.

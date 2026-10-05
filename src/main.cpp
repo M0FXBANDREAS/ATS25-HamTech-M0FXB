@@ -4,8 +4,8 @@
 #include <SI4735.h>
 #include <patch_ssb_compressed.h>
 
-// ATS-25 HamTech M0FXB Controller V1.3 BETA
-// Working V1.1 direct ILI9341 driver retained. Adds real PU2CLR SSB patch, USB/LSB, volume mode, branding and segmented S-meter.
+// ATS-25 HamTech M0FXB Controller V1.4 BETA
+// Working V1.1 direct ILI9341 driver retained. Receiver-style UI with explicit VFO/VOL/STEP/FILTER selection and direct AM/FM/LSB/USB mode selection.
 static constexpr int TFT_SCLK=18,TFT_MOSI=23,TFT_MISO=19,TFT_CS=15,TFT_DC=2,TFT_RST=4,TFT_LED=14;
 static constexpr int RX_RST=12,I2C_SDA=21,I2C_SCL=22;
 static constexpr int ENC_A=17,ENC_B=16,ENC_SW=33;
@@ -13,7 +13,12 @@ SPIClass lcd(VSPI); SI4735 rx;
 
 enum RadioMode : uint8_t { MODE_AM, MODE_FM, MODE_LSB, MODE_USB };
 RadioMode mode=MODE_AM;
-bool ssbLoaded=false, volumeMode=false;
+bool ssbLoaded=false;
+enum Control : uint8_t { CTRL_VFO, CTRL_VOL, CTRL_STEP, CTRL_FILTER, CTRL_MODE };
+Control control=CTRL_VFO;
+uint8_t ssbBwPos=3; // 2.2 kHz default
+const uint8_t ssbBwCode[6]={4,5,0,1,2,3};
+const char* ssbBwName[6]={"0.5","1.0","1.2","2.2","3.0","4.0"};
 const uint16_t size_content=sizeof ssb_patch_content;
 const uint16_t cmd_0x15_size=sizeof cmd_0x15;
 uint16_t amFreq=7100, fmFreq=10000;
@@ -76,33 +81,43 @@ static void drawGlobe(int cx,int cy){
   rect(cx-1,cy-8,2,17,CYAN); rect(cx-7,cy-1,15,2,CYAN);
   rect(cx-5,cy-5,4,3,GREEN);rect(cx+2,cy-3,4,4,GREEN);rect(cx-2,cy+3,5,3,GREEN);
 }
+static void panel(int x,int y,int w,int h,const char* label,bool on){
+  rect(x,y,w,h,on?0x0410:0x1082);
+  rect(x,y,w,1,on?CYAN:DGREY);rect(x,y+h-1,w,1,on?CYAN:DGREY);
+  int sc=2; text(x+5,y+5,label,sc,on?WHITE:CYAN);
+}
 static void drawStatus(){
-  rect(0,62,320,44,BLACK);
-  char a[40],b[40];
-  if(mode==MODE_FM){snprintf(a,sizeof(a),"FM STEP %u KHZ",fmStep*10);snprintf(b,sizeof(b),"VOL %u",volume);}
-  else {snprintf(a,sizeof(a),"%s STEP %u KHZ",modeName(),amStep);snprintf(b,sizeof(b),"VOL %u%s",volume,volumeMode?" ADJUST":"");}
-  text(6,66,a,2,WHITE); text(6,88,b,1,volumeMode?YELLOW:CYAN);
+  rect(0,62,320,45,0x0008);
+  char b[32];
+  snprintf(b,sizeof(b),"%s",modeName()); panel(4,65,57,36,b,control==CTRL_MODE);
+  snprintf(b,sizeof(b),"V%u",volume); panel(65,65,57,36,b,control==CTRL_VOL);
+  snprintf(b,sizeof(b),"S%u",mode==MODE_FM?fmStep*10:amStep); panel(126,65,57,36,b,control==CTRL_STEP);
+  if(mode==MODE_LSB||mode==MODE_USB)snprintf(b,sizeof(b),"F%s",ssbBwName[ssbBwPos]);
+  else snprintf(b,sizeof(b),"F3.0");
+  panel(187,65,65,36,b,control==CTRL_FILTER);
+  panel(256,65,60,36,"VFO",control==CTRL_VFO);
 }
 static void drawMeter(){
-  rect(0,106,320,55,BLACK); text(6,108,"S 1 3 5 7 9 +20 +40",1,WHITE);
-  const int n=24,gap=2,sw=11,x0=7,y=124,h=18;
+  rect(0,107,320,51,0x0008);
+  text(6,109,"S 1 3 5 7 9 +20 +40",1,WHITE);
+  const int n=24,gap=2,sw=11,x0=7,y=124,h=17;
   int lit=map(constrain(rssi,0,80),0,80,0,n);
-  for(int i=0;i<n;i++){
-    uint16_t c=i<14?GREEN:(i<20?YELLOW:RED);
-    rect(x0+i*(sw+gap),y,sw,h,i<lit?c:DGREY);
-  }
-  char b[32];snprintf(b,sizeof(b),"RSSI %u  SNR %u",rssi,snr);text(7,146,b,1,WHITE);
+  for(int i=0;i<n;i++){uint16_t c=i<14?GREEN:(i<20?YELLOW:RED);rect(x0+i*(sw+gap),y,sw,h,i<lit?c:0x2104);}
+  char b[32];snprintf(b,sizeof(b),"RSSI %u SNR %u",rssi,snr);text(7,145,b,1,WHITE);
+}
+static void drawGlobe(int cx,int cy){
+  for(int y=-9;y<=9;y++)for(int x=-9;x<=9;x++){int q=x*x+y*y;if(q>=64&&q<=88)rect(cx+x,cy+y,1,1,CYAN);}
+  rect(cx-1,cy-8,2,17,CYAN);rect(cx-7,cy-1,15,2,CYAN);
+  rect(cx-5,cy-5,4,3,GREEN);rect(cx+2,cy-3,4,4,GREEN);rect(cx-2,cy+3,5,3,GREEN);
 }
 static void drawFooter(){
-  rect(0,161,320,79,BLACK);
-  drawGlobe(18,178); text(34,169,"HAMTECH M0FXB",2,CYAN);
-  text(6,194,"PRESS STEP",1,WHITE);
-  text(112,194,"DOUBLE VOL",1,YELLOW);
-  text(224,194,"HOLD MODE",1,GREEN);
-  text(6,214,"AM FM LSB USB",2,WHITE);
+  rect(0,158,320,82,0x0008);
+  drawGlobe(19,176);text(35,166,"HAMTECH M0FXB",2,CYAN);
+  text(7,192,"PRESS SELECT",1,WHITE);text(128,192,"ROTATE CHANGE",1,YELLOW);
+  text(7,208,"MODE AM FM LSB USB",1,GREEN);
+  text(7,224,"VFO VOL STEP FILTER",1,WHITE);
 }
-static void drawUI(){drawHeader();drawStatus();drawMeter();drawFooter();}
-
+static void drawUI(){rect(0,0,320,240,0x0008);drawHeader();drawStatus();drawMeter();drawFooter();}
 void IRAM_ATTR encISR(){
  static uint8_t old=0;uint8_t n=(digitalRead(ENC_A)<<1)|digitalRead(ENC_B);uint8_t q=(old<<2)|n;
  if(q==0xD||q==4||q==2||q==0xB)encDelta++; if(q==0xE||q==7||q==1||q==8)encDelta--; old=n;
@@ -114,39 +129,46 @@ static void loadSSB(){
   rx.setSSBConfig(1,1,0,1,0,1); // 2.2 kHz, AVC on, AFC disabled for SSB
   rx.setI2CStandardMode(); ssbLoaded=true;
 }
+static void applySsbBw(){
+ if(mode==MODE_LSB||mode==MODE_USB){
+   uint8_t code=ssbBwCode[ssbBwPos];
+   rx.setSSBAudioBandwidth(code);
+   rx.setSSBSidebandCutoffFilter((code==0||code==4||code==5)?0:1);
+ }
+}
 static void applyBand(){
  if(mode==MODE_FM){ssbLoaded=false;rx.setFM(6400,10800,fmFreq,fmStep);}
  else if(mode==MODE_AM){ssbLoaded=false;rx.setAM(150,30000,amFreq,amStep);rx.setBandwidth(2,1);}
- else {
-   if(!ssbLoaded) loadSSB();
+ else{
+   if(!ssbLoaded)loadSSB();
    rx.setSSB(520,30000,amFreq,amStep,mode==MODE_USB?2:1);
-   rx.setSSBAutomaticVolumeControl(1); rx.setSsbSoftMuteMaxAttenuation(0); rx.setSSBBfo(0);
+   rx.setSSBAutomaticVolumeControl(1);rx.setSsbSoftMuteMaxAttenuation(0);rx.setSSBBfo(0);applySsbBw();
  }
  rx.setVolume(volume);
 }
-static void tune(int dir){
- if(volumeMode){
-   int v=constrain((int)volume+dir,0,63);volume=v;rx.setVolume(volume);drawStatus();return;
- }
- if(mode==MODE_FM){fmFreq=constrain((int)fmFreq+dir*fmStep,6400,10800);}
- else {amFreq=constrain((int)amFreq+dir*amStep,mode==MODE_AM?150:520,30000);}
- rx.setFrequency(curFreq()); drawHeader();
+static void changeMode(int dir){
+ int m=(int)mode+(dir>0?1:-1);if(m>3)m=0;if(m<0)m=3;mode=(RadioMode)m;applyBand();drawHeader();drawStatus();
 }
-static void shortPress(){
- if(volumeMode){volumeMode=false;drawStatus();return;}
- if(mode==MODE_FM) fmStep=(fmStep==1?10:1);
- else amStep=(amStep==1?5:amStep==5?9:amStep==9?10:amStep==10?100:1);
+static void changeStep(int dir){
+ if(mode==MODE_FM){fmStep=fmStep==10?1:10;}
+ else{const uint16_t st[5]={1,5,9,10,100};int p=0;for(int i=0;i<5;i++)if(st[i]==amStep)p=i;p=(p+(dir>0?1:4))%5;amStep=st[p];}
  rx.setFrequencyStep(mode==MODE_FM?fmStep:amStep);drawStatus();
 }
-static void toggleVolume(){volumeMode=!volumeMode;drawStatus();}
-static void nextMode(){
- volumeMode=false;
- if(mode==MODE_AM)mode=MODE_FM; else if(mode==MODE_FM)mode=MODE_LSB; else if(mode==MODE_LSB)mode=MODE_USB; else mode=MODE_AM;
- applyBand();drawUI();Serial.printf("MODE %s FREQ %u\n",modeName(),curFreq());
+static void changeFilter(int dir){
+ if(!(mode==MODE_LSB||mode==MODE_USB))return;
+ ssbBwPos=(ssbBwPos+(dir>0?1:5))%6;applySsbBw();drawStatus();
 }
+static void rotateAction(int dir){
+ if(control==CTRL_VFO){if(mode==MODE_FM)fmFreq=constrain((int)fmFreq+dir*fmStep,6400,10800);else amFreq=constrain((int)amFreq+dir*amStep,mode==MODE_AM?150:520,30000);rx.setFrequency(curFreq());drawHeader();}
+ else if(control==CTRL_VOL){volume=constrain((int)volume+dir,0,63);rx.setVolume(volume);drawStatus();}
+ else if(control==CTRL_STEP)changeStep(dir);
+ else if(control==CTRL_FILTER)changeFilter(dir);
+ else if(control==CTRL_MODE)changeMode(dir);
+}
+static void selectNext(){control=(Control)(((int)control+1)%5);drawStatus();}
 
 void setup(){
- Serial.begin(115200);delay(300);Serial.println("ATS-25 HamTech M0FXB Controller V1.3 BETA");
+ Serial.begin(115200);delay(300);Serial.println("ATS-25 HamTech M0FXB Controller V1.4 BETA");
  initLCD();rect(0,0,320,240,BLACK);
  pinMode(ENC_A,INPUT_PULLUP);pinMode(ENC_B,INPUT_PULLUP);pinMode(ENC_SW,INPUT_PULLUP);
  attachInterrupt(ENC_A,encISR,CHANGE);attachInterrupt(ENC_B,encISR,CHANGE);
@@ -156,17 +178,10 @@ void setup(){
  Serial.println("V1.2 BETA READY");
 }
 void loop(){
- int d;noInterrupts();d=encDelta;encDelta=0;interrupts();if(d)tune(d>0?1:-1);
- static bool lastDown=false; static uint32_t downAt=0,lastClick=0; static bool longDone=false;
- bool down=digitalRead(ENC_SW)==LOW;
- if(down&&!lastDown){downAt=millis();longDone=false;}
- if(down&&!longDone&&millis()-downAt>=900){longDone=true;nextMode();}
- if(!down&&lastDown&&!longDone){
-   uint32_t now=millis();
-   if(now-lastClick<420){lastClick=0;toggleVolume();}
-   else lastClick=now;
- }
- if(lastClick && millis()-lastClick>=420){lastClick=0;shortPress();}
- lastDown=down;
- static uint32_t t=0;if(millis()-t>500){t=millis();rx.getCurrentReceivedSignalQuality();rssi=rx.getCurrentRSSI();snr=rx.getCurrentSNR();drawMeter();Serial.printf("V1.3 %s %u VOL %u RSSI %u SNR %u heap %u\n",modeName(),curFreq(),volume,rssi,snr,ESP.getFreeHeap());}
+ int d;noInterrupts();d=encDelta;encDelta=0;interrupts();if(d)rotateAction(d>0?1:-1);
+ static bool was=false;static uint32_t downAt=0;bool down=digitalRead(ENC_SW)==LOW;
+ if(down&&!was)downAt=millis();
+ if(!down&&was&&millis()-downAt>25)selectNext();
+ was=down;
+ static uint32_t t=0;if(millis()-t>500){t=millis();rx.getCurrentReceivedSignalQuality();rssi=rx.getCurrentRSSI();snr=rx.getCurrentSNR();drawMeter();Serial.printf("V1.4 %s %u VOL %u BW %s RSSI %u SNR %u\n",modeName(),curFreq(),volume,(mode==MODE_LSB||mode==MODE_USB)?ssbBwName[ssbBwPos]:"3.0",rssi,snr);}
 }
