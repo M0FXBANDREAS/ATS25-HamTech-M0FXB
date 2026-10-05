@@ -1,1 +1,4 @@
-Extract ZIP. Upload ROOT contents to repository ROOT, replacing old files. Then PRESS "Commit changes".
+V1.7.1 STABILITY FIX
+
+Extract ZIP and upload ROOT contents to repository ROOT, replacing existing files.
+Then PRESS "Commit changes".

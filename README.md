@@ -1,17 +1,14 @@
-# ATS-25 HamTech M0FXB Controller V1.7 BETA
+# ATS-25 HamTech M0FXB Controller V1.7.1 BETA
 
-Adds a REAL SI4735 swept-RSSI spectrum/waterfall display to the proven V1.6 receiver.
+Stability fix for V1.7 spectrum flashing.
 
-Important: SI4735 is not a wideband I/Q SDR. The scope deliberately retunes through points around
-the centre frequency, measures RSSI, restores the centre frequency, and therefore briefly interrupts
-normal reception while sweeping. It is real measured RF signal strength, not decorative/fake FFT data.
+The V1.7 scope performed a 52-point blocking sweep and redrew the whole lower panel every 1.5 seconds.
+V1.7.1 replaces that with an incremental sweep:
+- one RSSI sample approximately every 25 ms
+- centre frequency restored after every individual sample
+- spectrum frame redrawn only after a completed sweep
+- no periodic clearing of the whole footer
+- AM/FM/LSB/USB, BFO, filters, bands and VFO A/B retained
 
-- 52-point swept RSSI scope
-- waterfall intensity strip
-- red centre marker
-- selectable +/-5 to +/-50 kHz scope span
-- AM/FM/LSB/USB retained
-- bands, VFO A/B, BFO and filters retained
-- NVS settings retained
-
-Touch is still held for the next revision so the exact panel calibration can be proven separately.
+The SI4735 remains a swept receiver, not a wideband I/Q SDR, so individual measurements still require
+brief retuning. This revision minimizes the disruption rather than pretending it is instantaneous.
