@@ -1,1 +1,1 @@
-Upload these CONTENTS to the repository root, preserving folders. Replace existing files when prompted. Then press Commit changes.
+Upload the CONTENTS of this folder to the root of M0FXBANDREAS/ATS25-HamTech-M0FXB, preserving src/, partitions/ and .github/workflows/. Commit changes. GitHub Actions will compile the firmware artifact.
